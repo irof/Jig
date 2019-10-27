@@ -1,7 +1,10 @@
 package org.dddjava.jig.presentation.view.graphvizj;
 
+import org.dddjava.jig.domain.model.diagram.DotText;
+
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class DotTexts {
     List<DotText> values;
@@ -10,12 +13,12 @@ public class DotTexts {
         this.values = values;
     }
 
-    public DotTexts(String value) {
-        this(Collections.singletonList(new DotText(value)));
+    public DotTexts(DotText dotText) {
+        this(Collections.singletonList(dotText));
     }
 
     public List<DotText> list() {
-        return values;
+        return values.stream().filter(dotText -> !dotText.isEmpty()).collect(Collectors.toList());
     }
 
     public boolean isEmpty() {

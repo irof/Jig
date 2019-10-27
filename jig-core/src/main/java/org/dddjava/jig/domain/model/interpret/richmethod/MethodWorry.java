@@ -1,6 +1,7 @@
 package org.dddjava.jig.domain.model.interpret.richmethod;
 
 import org.dddjava.jig.domain.model.declaration.method.MethodDeclaration;
+import org.dddjava.jig.domain.model.declaration.method.MethodReturn;
 import org.dddjava.jig.domain.model.declaration.type.TypeIdentifier;
 import org.dddjava.jig.domain.model.implementation.bytecode.MethodByteCode;
 
@@ -17,8 +18,7 @@ public enum MethodWorry {
     },
     基本型の授受を行なっている {
         @Override
-        boolean judge(MethodByteCode methodByteCode) {
-            MethodDeclaration methodDeclaration = methodByteCode.methodDeclaration();
+        boolean judgeDeclaration(MethodDeclaration methodDeclaration) {
             return methodDeclaration.methodReturn().isPrimitive()
                     || methodDeclaration.methodSignature().arguments().stream().anyMatch(TypeIdentifier::isPrimitive);
         }
@@ -37,8 +37,8 @@ public enum MethodWorry {
     },
     真偽値を返している {
         @Override
-        boolean judge(MethodByteCode methodByteCode) {
-            return methodByteCode.methodDeclaration().methodReturn().typeIdentifier().isBoolean();
+        boolean judgeDeclaration(MethodDeclaration methodDeclaration) {
+            return methodDeclaration.methodReturn().typeIdentifier().isBoolean();
         }
     },
     StreamAPIを使用している {
@@ -47,7 +47,24 @@ public enum MethodWorry {
             UsingMethods usingMethods = new UsingMethods(methodByteCode.usingMethods());
             return usingMethods.containsStream();
         }
-    };
+    },
+    voidを返している {
+        @Override
+        boolean judgeMethodReturn(MethodReturn methodReturn) {
+            return methodReturn.isVoid();
+        }
+    }
+    ;
 
-    abstract boolean judge(MethodByteCode methodByteCode);
+    boolean judge(MethodByteCode methodByteCode) {
+        return judgeDeclaration(methodByteCode.methodDeclaration());
+    }
+
+    boolean judgeDeclaration(MethodDeclaration methodDeclaration) {
+        return judgeMethodReturn(methodDeclaration.methodReturn());
+    }
+
+    boolean judgeMethodReturn(MethodReturn methodReturn) {
+        return false;
+    }
 }

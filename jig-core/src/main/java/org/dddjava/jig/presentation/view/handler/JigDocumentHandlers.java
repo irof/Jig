@@ -1,9 +1,13 @@
 package org.dddjava.jig.presentation.view.handler;
 
-import org.dddjava.jig.presentation.controller.*;
-import org.dddjava.jig.presentation.view.JigDocument;
+import org.dddjava.jig.domain.model.diagram.JigDocument;
+import org.dddjava.jig.presentation.controller.BusinessRuleListController;
+import org.dddjava.jig.presentation.controller.ClassListController;
+import org.dddjava.jig.presentation.controller.DiagramController;
+import org.dddjava.jig.presentation.view.DiagramView;
 import org.dddjava.jig.presentation.view.JigDocumentWriter;
 import org.dddjava.jig.presentation.view.JigModelAndView;
+import org.dddjava.jig.presentation.view.ViewResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,27 +21,26 @@ public class JigDocumentHandlers {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JigDocumentHandlers.class);
 
-    Object[] controllers;
+    ViewResolver viewResolver;
+    Object[] handlers;
 
-    public JigDocumentHandlers(ServiceDiagramController serviceDiagramController,
+    public JigDocumentHandlers(ViewResolver viewResolver,
                                BusinessRuleListController businessRuleListController,
                                ClassListController classListController,
-                               PackageDependencyController packageDependencyController,
-                               EnumUsageController enumUsageController) {
+                               DiagramController diagramController) {
+        this.viewResolver = viewResolver;
         // FIXME @Controllerをスキャンするようにしたい。現状はController追加のたびにここに足す必要がある。
-        this.controllers = new Object[]{
-                serviceDiagramController,
+        this.handlers = new Object[]{
                 businessRuleListController,
                 classListController,
-                packageDependencyController,
-                enumUsageController
+                diagramController
         };
     }
 
-    JigModelAndView<?> resolveHandlerMethod(JigDocument jigDocument, HandlerMethodArgumentResolver argumentResolver) {
+    JigModelAndView<?> invokeHandlerMethod(JigDocument jigDocument, HandlerMethodArgumentResolver argumentResolver) {
         try {
-            for (Object controller : controllers) {
-                Optional<Method> mayBeHandlerMethod = Arrays.stream(controller.getClass().getMethods())
+            for (Object handler : handlers) {
+                Optional<Method> mayBeHandlerMethod = Arrays.stream(handler.getClass().getMethods())
                         .filter(method -> method.isAnnotationPresent(DocumentMapping.class))
                         .filter(method -> method.getAnnotation(DocumentMapping.class).value() == jigDocument)
                         .findFirst();
@@ -46,7 +49,14 @@ public class JigDocumentHandlers {
                     Object[] args = Arrays.stream(method.getParameterTypes())
                             .map(clz -> argumentResolver.resolve(clz))
                             .toArray();
-                    return (JigModelAndView<?>) method.invoke(controller, args);
+                    Object result = method.invoke(handler, args);
+
+                    if (result instanceof  JigModelAndView) {
+                        return (JigModelAndView<?>) result;
+                    }
+
+                    DiagramView diagramView = DiagramView.of(jigDocument);
+                    return diagramView.createModelAndView(result, viewResolver);
                 }
             }
         } catch (ReflectiveOperationException e) {
@@ -57,7 +67,7 @@ public class JigDocumentHandlers {
 
     public HandleResult handle(JigDocument jigDocument, HandlerMethodArgumentResolver argumentResolver, Path outputDirectory) {
         try {
-            JigModelAndView<?> jigModelAndView = resolveHandlerMethod(jigDocument, argumentResolver);
+            JigModelAndView<?> jigModelAndView = invokeHandlerMethod(jigDocument, argumentResolver);
 
             if (Files.notExists(outputDirectory)) {
                 Files.createDirectories(outputDirectory);

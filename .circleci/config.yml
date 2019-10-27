@@ -1,16 +1,35 @@
-version: 2
-anchors:
-  usually-build: &usually-build
+version: 2.1
+executors:
+  circleci-openjdk-8-executor:
+    docker:
+      - image: circleci/openjdk:8-jdk
     working_directory: ~/repo
     environment:
       JVM_OPTS: -Xmx3200m
       TERM: dumb
+  circleci-openjdk-11-executor:
+    docker:
+      - image: circleci/openjdk:11.0.4-jdk-stretch
+    working_directory: ~/repo
+    environment:
+      JVM_OPTS: -Xmx3200m
+      TERM: dumb
+  circleci-openjdk-13-executor:
+    docker:
+      - image: circleci/openjdk:13.0.1-jdk-buster
+    working_directory: ~/repo
+    environment:
+      JVM_OPTS: -Xmx3200m
+      TERM: dumb
+commands:
+  pre-build:
     steps:
       - checkout
       - run: sudo apt-get update && sudo apt-get install -y graphviz fonts-ipafont
       - restore_cache:
           key: gradle-dependencies-{{ checksum "build.gradle" }}
-      - run: ./gradlew build
+  post-build:
+    steps:
       - save_cache:
           paths:
             - ~/.gradle
@@ -21,33 +40,13 @@ anchors:
           path: jig-core/build/reports/tests
       - store_artifacts:
           path: jig-gradle-plugin/build/reports/tests
-jobs:
-  java-8:
-    docker:
-    - image: circleci/openjdk:8-jdk
-    <<: *usually-build
-  java-11:
-    docker:
-    - image: circleci/openjdk:11.0.3-jdk-stretch
-    <<: *usually-build
-
-  release-build:
-    docker:
-      - image: circleci/openjdk:8-jdk
-    working_directory: ~/repo
-    environment:
-      JVM_OPTS: -Xmx3200m
-      TERM: dumb
+  build:
     steps:
-      - checkout
-      - run: sudo apt-get update && sudo apt-get install -y graphviz fonts-ipafont
-      - restore_cache:
-          key: gradle-dependencies-{{ checksum "build.gradle" }}
-      - run: ./gradlew build -Pversion=${CIRCLE_TAG}
-      - store_test_results:
-          path: jig-core/build/test-results
-
-      # RELEASE
+      - pre-build
+      - run: ./gradlew --no-daemon build
+      - post-build
+  release:
+    steps:
       - store_artifacts:
           path: jig-cli/build/libs
           destination: module
@@ -59,26 +58,51 @@ jobs:
       - store_artifacts:
           path: example
           destination: example
-      - run: ./gradlew :jig-annotation:bintrayUpload :jig-core:bintrayUpload :jig-gradle-plugin:publishPlugins -Pversion=${CIRCLE_TAG}
+      - run: ./gradlew :jig-core:bintrayUpload :jig-gradle-plugin:publishPlugins -Pversion=${CIRCLE_TAG}
 
       # licenses
       - run: ./gradlew downloadLicenses
       - store_artifacts:
           path: build/reports/license
+  build-release:
+    steps:
+      - pre-build
+      - run: ./gradlew build -Pversion=${CIRCLE_TAG}
+      - post-build
+      - release
+
+jobs:
+  build-java-8:
+    executor: circleci-openjdk-8-executor
+    steps:
+      - build
+  build-java-11:
+    executor: circleci-openjdk-11-executor
+    steps:
+      - build
+  build-java-13:
+    executor: circleci-openjdk-13-executor
+    steps:
+      - build
+  release-build:
+    executor: circleci-openjdk-8-executor
+    steps:
+      - build-release
+
 workflows:
   version: 2
   usually:
     jobs:
-      - java-8:
+      - build-java-8:
           filters:
             branches:
               only: 'master'
-      - java-11:
+      - build-java-11:
           requires:
-            - java-8
-          filters:
-            branches:
-              only: 'master'
+            - build-java-8
+      - build-java-13:
+          requires:
+            - build-java-8
   release:
     jobs:
       - release-build:

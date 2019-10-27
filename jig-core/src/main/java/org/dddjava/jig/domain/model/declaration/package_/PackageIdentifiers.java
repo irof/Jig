@@ -16,20 +16,12 @@ public class PackageIdentifiers {
         this.list = list;
     }
 
-    public PackageTree tree() {
-        return PackageTree.of(list);
-    }
-
     public PackageIdentifiers applyDepth(PackageDepth packageDepth) {
         List<PackageIdentifier> list = this.list.stream()
                 .map(identifier -> identifier.applyDepth(packageDepth))
                 .distinct()
                 .collect(toList());
         return new PackageIdentifiers(list);
-    }
-
-    public AllPackageIdentifiers allPackageIdentifiers() {
-        return new AllPackageIdentifiers(list);
     }
 
     public PackageDepth maxDepth() {
@@ -53,5 +45,9 @@ public class PackageIdentifiers {
 
     public List<PackageIdentifier> list() {
         return list;
+    }
+
+    public PackageIdentifiers parent() {
+        return applyDepth(new PackageDepth(maxDepth().value() - 1));
     }
 }

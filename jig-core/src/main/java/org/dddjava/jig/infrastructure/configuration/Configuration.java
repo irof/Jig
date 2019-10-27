@@ -1,6 +1,7 @@
 package org.dddjava.jig.infrastructure.configuration;
 
 import org.dddjava.jig.application.service.*;
+import org.dddjava.jig.domain.model.interpret.alias.AliasFinder;
 import org.dddjava.jig.domain.model.interpret.alias.SourceCodeAliasReader;
 import org.dddjava.jig.domain.model.interpret.architecture.Architecture;
 import org.dddjava.jig.infrastructure.PrefixRemoveIdentifierFormatter;
@@ -32,7 +33,9 @@ public class Configuration {
         PrefixRemoveIdentifierFormatter prefixRemoveIdentifierFormatter = new PrefixRemoveIdentifierFormatter(
                 properties.getOutputOmitPrefix()
         );
+        AliasFinder aliasFinder = new AliasFinder.GlossaryServiceAdapter(aliasService);
         ViewResolver viewResolver = new ViewResolver(
+                aliasFinder,
                 // TODO MethodNodeLabelStyleとDiagramFormatをプロパティで受け取れるようにする
                 // @Value("${methodNodeLabelStyle:SIMPLE}") String methodNodeLabelStyle
                 // @Value("${diagram.format:SVG}") String diagramFormat
@@ -50,20 +53,10 @@ public class Configuration {
                 applicationService,
                 businessRuleService
         );
-        EnumUsageController enumUsageController = new EnumUsageController(
-                businessRuleService,
-                aliasService,
-                viewResolver
-        );
-        PackageDependencyController packageDependencyController = new PackageDependencyController(
+        DiagramController diagramController = new DiagramController(
                 dependencyService,
-                aliasService,
-                viewResolver
-        );
-        ServiceDiagramController serviceDiagramController = new ServiceDiagramController(
-                applicationService,
-                aliasService,
-                viewResolver
+                businessRuleService,
+                applicationService
         );
         this.implementationService = new ImplementationService(
                 new AsmByteCodeFactory(),
@@ -72,11 +65,10 @@ public class Configuration {
                 new LocalFileSourceReader()
         );
         this.documentHandlers = new JigDocumentHandlers(
-                serviceDiagramController,
+                viewResolver,
                 businessRuleListController,
                 classListController,
-                packageDependencyController,
-                enumUsageController
+                diagramController
         );
     }
 
