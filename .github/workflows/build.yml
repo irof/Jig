@@ -14,8 +14,10 @@ jobs:
       with:
         java-version: 1.8
     - name: Build with Gradle
-      run: ./gradlew build
-    - uses: actions/upload-artifact@master
+      run: ./gradlew :jig-core:build
+    - name: upload test report
+      if: failure()
+      uses: actions/upload-artifact@master
       with:
         name: test-report
         path: jig-core/build/test-results
