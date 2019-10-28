@@ -19,6 +19,6 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@master
       with:
-        name: test-report
-        path: jig-core/build/test-results
+        name: failure-report
+        path: jig-core/build/reports/tests/test
 
