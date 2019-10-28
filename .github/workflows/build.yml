@@ -24,7 +24,7 @@ jobs:
         name: failure-report
         path: jig-core/build/reports/tests/test
     - name: Build CLI
-      run: ./gradlw :jig-cli:build
+      run: ./gradlew :jig-cli:build
     - name: Run CLI
       run: java -jar jig-cli/build/libs/jig-cli.jar
     - name: Upload JIG-DOCUMENT
